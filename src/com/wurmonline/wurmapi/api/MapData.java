@@ -63,6 +63,7 @@ public final class MapData {
         }
     }
     
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     private MeshIO createMap(String dir, int powerOfTwo) throws IOException {
         File file = new File(dir);
         if (file.exists()) {
@@ -145,7 +146,8 @@ public final class MapData {
         
         setSurfaceTile(x, y, type, height, data);
     }
-    
+
+    @SuppressWarnings("unused")
     /**
      * Sets tile data on a surface.<br>
      * Please see {@link #setSurfaceTile(int, int, com.wurmonline.mesh.Tiles.Tile, short) this method} for more details.
@@ -160,15 +162,19 @@ public final class MapData {
     
     /**
      * Sets tile data on a surface.<br>
-     * While it is possible to place practically everything using this method, it is recommended to set things like trees and bushes using specialized methods instead of this one.<br><br>
+     * While it is possible to place practically everything using this method, it is recommended to set things like
+     * trees and bushes using specialized methods instead of this one.<br><br>
      * 
-     * If tile is on lower height than rock layer height at the moment of saving map to file, it will be automatically set to rock layer height.<br>
-     * If the whole tile is exposed (rock level equal to surface level in all four corners), its type will be changed to rock on map save.<br>
+     * If tile is on lower height than rock layer height at the moment of saving map to file, it will be automatically
+     * set to rock layer height.<br>
+     * If the whole tile is exposed (rock level equal to surface level in all four corners), its type will be changed to
+     * rock on map save.<br>
      * This method will NOT prevent doing illogical things like placing trees or grass under water.<br><br>
      * 
      * Under the hood, tile data is 32-bit value, where:<br>
      * Bits 1-8 : tile type data<br>
-     * Bits 9-16 : additional data (used for example by trees, bushes and grass, varies from tile type to tile type, this method is not using these bits)<br>
+     * Bits 9-16 : additional data (used for example by trees, bushes and grass, varies from tile type to tile type,
+     * this method is not using these bits)<br>
      * Bits 17-32 : height data (as signed short value)
      * 
      * @param x x location in game world.
@@ -192,15 +198,25 @@ public final class MapData {
         
         setSurfaceTile(x, y, tileType, height, (byte) 0);
     }
-    
+
+    /**
+     * @param x x location in game world.
+     * @param y y location in game world.
+     * @param tileType type of tile. Using cave, trees and bushes constants is not allowed.
+     * @param height height of tile.
+     * @param data For this method it's 0. When used in other methods its a single encoded value derived from different
+     *             values like Tree age or grass height.
+     */
     private void setSurfaceTile(int x, int y, Tile tileType, short height, byte data) {
-        surfaceMesh.setTile(x, y, Tiles.encode(height, (byte) tileType.getId(), data));
+        surfaceMesh.setTile(x, y, Tiles.encode(height, tileType.getId(), data));
     }
     
     /**
      * Places tree in specified position in game world.<br><br>
      * 
-     * Placing tree should happen after calling {@link #setSurfaceTile(int, int, short, com.wurmonline.mesh.Tiles.Tile) setSurfaceTile}, as it is using data from a tile (height and grass type) to generate the final tree data.<br>
+     * Placing tree should happen after calling
+     * {@link #setSurfaceTile(int, int, com.wurmonline.mesh.Tiles.Tile, short height) setSurfaceTile},
+     * as it is using data from a tile (height and grass type) to generate the final tree data.<br>
      * This method will NOT prevent doing illogical things like placing trees under water.<br><br>
      * 
      * Under the hood, 1 byte of tree special data is composed of these values:<br>
@@ -240,11 +256,14 @@ public final class MapData {
         
         setFoliage(x, y, resultType, age, grassStage);
     }
-    
+
+    @SuppressWarnings("unused")
     /**
      * Places bush in specified position in game world.<br><br>
      * 
-     * Placing bush should happen after calling {@link #setSurfaceTile(int, int, short, int) setSurfaceTile}, as it is using data from a tile (height and grass type) to generate the final bush data.<br>
+     * Placing bush should happen after calling
+     * {@link #setSurfaceTile(int, int, com.wurmonline.mesh.Tiles.Tile, short height) setSurfaceTile}, as it is
+     * using data from a tile (height and grass type) to generate the final bush data.<br>
      * This method will NOT prevent doing illogical things like placing grass under water.<br><br>
      * 
      * Under the hood, 1 byte of bush special data is composed in the same way as tree data: {@link #setTree(int, int, com.wurmonline.mesh.TreeData.TreeType, com.wurmonline.mesh.FoliageAge, com.wurmonline.mesh.GrassData.GrowthTreeStage) setTree}.
@@ -288,7 +307,8 @@ public final class MapData {
 
         surfaceMesh.setTile(x, y, Tiles.encode(currentHeight, foliageType, resultData));
     }
-    
+
+    @SuppressWarnings("unused")
     /**
      * Sets grass data on given grass, mycelium, kelp or reed tile (for any other types of tiles it does nothing).<br><br>
      * 
@@ -349,7 +369,8 @@ public final class MapData {
     public void setRockHeight(int x, int y, short height) {
         rockMesh.setTile(x, y, Tiles.encode(height, (byte) Tiles.TILE_TYPE_ROCK, (byte) 0));
     }
-    
+
+    @SuppressWarnings("unused")
     /**
      * 
      * @param x x location in game world.
@@ -380,7 +401,8 @@ public final class MapData {
     
     /**
      * Sets tile data inside cave.<br>
-     * Only solid cave walls are allowed - exception will be thrown on attempt to set non-cave tile type or cave type which is not a wall.
+     * Only solid cave walls are allowed - exception will be thrown on attempt to set non-cave tile type or cave type
+     * which is not a wall.
      * 
      * @param x x location in game world.
      * @param y y location in game world.
@@ -391,7 +413,8 @@ public final class MapData {
         if (tileType == null || !tileType.isCave()) {
             throw new IllegalArgumentException("Tile type is null");
         }
-        else if (!tileType.isCave()) {
+        else //noinspection ConstantConditions
+            if (!tileType.isCave()) {
             throw new IllegalArgumentException("Tile type is not cave type: "+tileType.toString());
         }
         else if (!tileType.isSolidCave()) {
@@ -403,9 +426,10 @@ public final class MapData {
     }
     
     private void setCaveTile(int x, int y, Tile tileType, short height, byte data) {
-        caveMesh.setTile(x, y, Tiles.encode(height, (byte) tileType.getId(), data));
+        caveMesh.setTile(x, y, Tiles.encode(height, tileType.getId(), data));
     }
-    
+
+    @SuppressWarnings("unused")
     /**
      * @param x x location in game world.
      * @param y y location in game world.
@@ -432,7 +456,8 @@ public final class MapData {
         final int value = resourcesMesh.getTile(x, y);
         resourcesMesh.setTile(x, y, ((resourceCount & 0xFFFF) << 16) + (value & 0xFFFF));
     }
-    
+
+    @SuppressWarnings("ConstantConditions")
     /**
      * Creates classical Wurm Online map dump, with semi-3d terrain.<br>
      * You don't need to save map first to create updated map dump - it is using data from memory.

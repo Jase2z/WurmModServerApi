@@ -32,6 +32,7 @@ public class WurmAPI {
     private WurmAPI(String worldDirectory) throws IOException {
         this.rootDir = worldDirectory + File.separator;
         File file = new File(rootDir);
+        //noinspection ResultOfMethodCallIgnored
         file.mkdirs();
         
         this.mapData = new MapData(rootDir);
@@ -44,6 +45,7 @@ public class WurmAPI {
         
         this.rootDir = worldDirectory + File.separator;
         File file = new File(rootDir);
+        //noinspection ResultOfMethodCallIgnored
         file.mkdirs();
         
         this.mapData = new MapData(rootDir, powerOfTwo);
