@@ -7,10 +7,13 @@ import com.wurmonline.mesh.MeshIO;
 import com.wurmonline.mesh.Tiles;
 import com.wurmonline.mesh.Tiles.Tile;
 import com.wurmonline.mesh.TreeData.TreeType;
+import com.wurmonline.wurmapi.internal.CaveColors;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -208,6 +211,10 @@ public final class MapData {
      *             values like Tree age or grass height.
      */
     private void setSurfaceTile(int x, int y, Tile tileType, short height, byte data) {
+        if (tileType == null) {
+            tileType = Tile.TILE_DIRT;
+        }
+
         surfaceMesh.setTile(x, y, Tiles.encode(height, tileType.getId(), data));
     }
     
@@ -352,7 +359,7 @@ public final class MapData {
         short currentHeight = Tiles.decodeHeight(surfaceMesh.getTile(x, y));
         surfaceMesh.setTile(x, y, Tiles.encode(currentHeight,(byte) currentType, GrassData.encodeGrassTileData(grassStage, grassType, flower)));
     }
-    
+
     public short getRockHeight(int x, int y) {
         return Tiles.decodeHeight(rockMesh.getTile(x, y));
     }
@@ -413,8 +420,7 @@ public final class MapData {
         if (tileType == null || !tileType.isCave()) {
             throw new IllegalArgumentException("Tile type is null");
         }
-        else //noinspection ConstantConditions
-            if (!tileType.isCave()) {
+        else if (!tileType.isCave()) {
             throw new IllegalArgumentException("Tile type is not cave type: "+tileType.toString());
         }
         else if (!tileType.isSolidCave()) {
@@ -457,7 +463,6 @@ public final class MapData {
         resourcesMesh.setTile(x, y, ((resourceCount & 0xFFFF) << 16) + (value & 0xFFFF));
     }
 
-    @SuppressWarnings("ConstantConditions")
     /**
      * Creates classical Wurm Online map dump, with semi-3d terrain.<br>
      * You don't need to save map first to create updated map dump - it is using data from memory.
@@ -534,7 +539,7 @@ public final class MapData {
 
                 final int altTarget = y - (int) (Tiles.decodeHeight(surfaceMesh.getTile(x, y)) * MAP_HEIGHT / 4  / (Short.MAX_VALUE / 3.3f));
                 while (alt > altTarget && alt >= 0) {
-                    data[(x + alt * lWidth) * 3 + 0] = r * 255;
+                    data[(x + alt * lWidth) * 3] = r * 255;
                     data[(x + alt * lWidth) * 3 + 1] = g * 255;
                     data[(x + alt * lWidth) * 3 + 2] = b * 255;
                     alt--;
@@ -545,7 +550,8 @@ public final class MapData {
         bi2.getRaster().setPixels(0, 0, lWidth, lWidth, data);
         return bi2;
     }
-    
+
+    @SuppressWarnings("unused")
     /**
      * Creates flat map dump, showing all terrain types in different colors.<br>
      * You don't need to save map first to create updated map dump - it is using data from memory.
@@ -554,6 +560,39 @@ public final class MapData {
      * @return map image
      */
     public BufferedImage createTerrainDump(boolean showWater) {
+        return createFlatDump(true, showWater);
+    }
+
+    @SuppressWarnings("unused")
+    /**
+     * Creates flat map dump, showing all cave terrain types in different colors.<br>
+     * You don't need to save map first to create updated map dump - it is using data from memory.
+     * 
+     * @param showWater set true if you want to make water visible, false otherwise.
+     * @param tiles ore types to show on cave dump (all will be shown if not specified or null, none if empty)
+     * @return map image
+     */
+    public BufferedImage createCaveDump(boolean showWater, Tile... tiles) {
+        return createFlatDump(false, showWater, tiles);
+    }
+    
+    private BufferedImage createFlatDump(boolean isSurface, boolean showWater, Tile... allowedTiles) {
+        final MeshIO terrainMesh;
+        if (isSurface) {
+            terrainMesh = surfaceMesh;
+        }
+        else {
+            terrainMesh = caveMesh;
+        }
+        
+        final MeshIO heightMesh;
+        if (isSurface) {
+            heightMesh = surfaceMesh;
+        }
+        else {
+            heightMesh = rockMesh;
+        }
+        
         int lWidth = 16384;
         if (lWidth > getWidth())
             lWidth = getWidth();
@@ -575,16 +614,40 @@ public final class MapData {
         
         for (int x = 0; x < lWidth; x++) {
             for (int y = lWidth - 1; y >= 0; y--) {
-                final short height = Tiles.decodeHeight(surfaceMesh.getTile(x + xo, y + yo));
-                final byte tex = Tiles.decodeType(surfaceMesh.getTile(x + xo, y + yo));
-
+                final short height = Tiles.decodeHeight(heightMesh.getTile(x + xo, y + yo));
+                final byte tex = Tiles.decodeType(terrainMesh.getTile(x + xo, y + yo));
                 final Tile tile = Tiles.getTile(tex);
+                boolean visible = true;
+
+                if (allowedTiles != null) {
+                    visible = false;
+                    for (int i = 0; i< allowedTiles.length; i++) {
+                        if (allowedTiles[i] == tile) {
+                            visible = true;
+                            break;
+                        }
+                    }
+                }
+
                 final Color color;
                 if (tile != null) {
-                    color = tile.getColor();
+                    if (isSurface) {
+                        color = tile.getColor();
+                    }
+                    else if (visible) {
+                        color = CaveColors.getColorFor(tile);
+                    }
+                    else {
+                        color = CaveColors.getColorFor(Tile.TILE_CAVE_WALL);
+                    }
                 }
                 else {
-                    color = Tile.TILE_DIRT.getColor();
+                    if (isSurface) {
+                        color = Tile.TILE_DIRT.getColor();
+                    }
+                    else {
+                        color = CaveColors.getColorFor(Tile.TILE_CAVE);
+                    }
                 }
                 int r = color.getRed();
                 int g = color.getGreen();
@@ -595,7 +658,7 @@ public final class MapData {
                     b = (int) (b * 0.2f + 1.0f * 0.4f * 256f);
                 }
                 
-                data[(x + y * lWidth) * 3 + 0] = r;
+                data[(x + y * lWidth) * 3] = r;
                 data[(x + y * lWidth) * 3 + 1] = g;
                 data[(x + y * lWidth) * 3 + 2] = b;
             }
@@ -666,7 +729,7 @@ public final class MapData {
                     b = (int) (b * 0.2f + 1.0f * 0.4f * 256f);
                 }
                 
-                data[(x + y * lWidth) * 3 + 0] = r;
+                data[(x + y * lWidth) * 3] = r;
                 data[(x + y * lWidth) * 3 + 1] = g;
                 data[(x + y * lWidth) * 3 + 2] = b;
             }
